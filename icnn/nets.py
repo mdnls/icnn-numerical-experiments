@@ -74,6 +74,38 @@ class ICNN(nn.Module):
         plt.plot(x, y_true, label="True")
         plt.plot(x, y_est, label="Estimate")
         
+class MLP(ICNN):
+    def __init__(self, activ, layers):
+        super(activ, layers)
+        weight_dims = list(zip(layers[1:], layers))
+        first_idim = weight_dims[0][1]
+        for odim, idim in weight_dims:
+            self.Ws.append(nn.Parameter(torch.tensor(np.random.normal(size=(odim, idim))
+
+    def train(self, fit_fn, a, b, dx, tparams):
+        '''
+        Train the net to minimize a least squares objective between itself and the given fit_fn on the interval [a, b] 
+        by fitting regularly sampled points [a, a+dx, a+2dx, ..., b].
+        
+        fit_fn - (np.ndarray) -> (np.ndarray): map an input tensor to an output tensor
+        a - (torch.double): beginning of interval
+        b - (torch.double): end of interval
+        dx - (torch.double): step size
+        tparams - TParams: parameters to use for training
+        '''
+        self.tparams = tparams
+        
+        x = torch.tensor(np.arange(a, b, dx), dtype=torch.double).view([-1, 1])
+        y = fit_fn(x)
+        
+        opt = torch.optim.Adam(params=self.parameters(), lr=tparams.lr, betas=(tparams.b1, tparams.b2))
+        
+        for itr in trange(tparams.iters):
+            opt.zero_grad()
+            loss_this_itr = self.loss(x, y)
+            loss_this_itr.backward()
+            opt.step()
+
 class TParams():
     def __init__(self, lr, b1, b2, iters):
         self.lr = lr
