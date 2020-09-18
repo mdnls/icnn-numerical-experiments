@@ -1,4 +1,3 @@
-print("Code cell...")
 import torch
 import torch.nn as nn
 import numpy as np
@@ -79,8 +78,9 @@ class MLP(ICNN):
         super(activ, layers)
         weight_dims = list(zip(layers[1:], layers))
         first_idim = weight_dims[0][1]
+        self.Ws = []
         for odim, idim in weight_dims:
-            self.Ws.append(nn.Parameter(torch.tensor(np.random.normal(size=(odim, idim))
+            self.Ws.append(nn.Parameter(torch.tensor(np.random.normal(size=(odim, idim)))))
 
     def train(self, fit_fn, a, b, dx, tparams):
         '''
