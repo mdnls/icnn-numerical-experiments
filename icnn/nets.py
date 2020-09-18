@@ -75,10 +75,10 @@ class ICNN(nn.Module):
         
 class MLP(ICNN):
     def __init__(self, activ, layers):
-        super(activ, layers)
+        super(MLP, self).__init__(activ, layers)
         weight_dims = list(zip(layers[1:], layers))
         first_idim = weight_dims[0][1]
-        self.Ws = []
+        self.Ws = nn.ParameterList()
         for odim, idim in weight_dims:
             self.Ws.append(nn.Parameter(torch.tensor(np.random.normal(size=(odim, idim)))))
 
