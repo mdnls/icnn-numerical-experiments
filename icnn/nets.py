@@ -113,19 +113,27 @@ class MLP(ICNN):
         x = torch.tensor(np.arange(a, b, dx), dtype=torch.double, device=self.device).view([-1, 1])
         y = fit_fn(x)
         
+        self.train(x, y, tparams, verbose)
+            
+    def train(self, x, y, tparams, verbose=True):
+        x_pt = torch.tensor(x, dtype=torch.double, device=self.device)
+        y_pt = torch.tensor(y, dtype=torch.double, device=self.device)
         opt = torch.optim.Adam(params=self.parameters(), lr=tparams.lr, betas=(tparams.b1, tparams.b2))
         
         if verbose:
             rng = trange(tparams.iters)
         else:
             rng = range(tparams.iters)
-
+        
+        losses = []
         for itr in rng:
             opt.zero_grad()
-            loss_this_itr = self.loss(x, y)
+            loss_this_itr = self.loss(x_pt, y_pt)
             loss_this_itr.backward()
+            losses.append(loss_this_itr.item())
             opt.step()
-
+        return losses
+            
 class du_MLP(nn.Module):
     def __init__(self, activ, layers, scale=None, device="cpu"):
         super(du_MLP, self).__init__()
@@ -139,7 +147,6 @@ class du_MLP(nn.Module):
         self.device = device
         for odim, idim in weight_dims:
             self.Ws.append(nn.Parameter(torch.tensor(np.random.normal(size=(odim, idim)), device=self.device)))
-            self.bs.append(nn.Parameter(torch.tensor(np.random.normal(size=(odim,)), device=self.device)))
         if(activ == "relu"):
             self.activ = nn.ReLU()
         elif(activ == "linear"):
@@ -150,12 +157,10 @@ class du_MLP(nn.Module):
     def forward(self, z):
         z0 = z.clone()
         
-        layers = list(zip(self.Ws, self.bs))
-        final_W, final_b = layers[-1]
-        for (W, b) in layers[:-1]:
-            z = self.activ(z @ torch.t(W) + b)
+        for W in self.Ws[:-1]:
+            z = self.activ(z @ torch.t(W))
         
-        z = z @ torch.t(final_W)
+        z = z @ torch.t(self.Ws[-1])
         if(self.scale is not None):
             return z * self.scale
         else:
@@ -179,20 +184,27 @@ class du_MLP(nn.Module):
         
         x = torch.tensor(np.arange(a, b, dx), dtype=torch.double, device=self.device).view([-1, 1])
         y = fit_fn(x)
+        self.train(x, y, tparams, verbose)
         
+    def train(self, x, y, tparams, verbose=True):
+        x_pt = torch.tensor(x, dtype=torch.double, device=self.device)
+        y_pt = torch.tensor(y, dtype=torch.double, device=self.device)
         opt = torch.optim.Adam(params=self.parameters(), lr=tparams.lr, betas=(tparams.b1, tparams.b2))
-
+        
         if verbose:
             rng = trange(tparams.iters)
         else:
             rng = range(tparams.iters)
-
+            
+        losses = []
         for itr in rng:
             opt.zero_grad()
-            loss_this_itr = self.loss(x, y)
+            loss_this_itr = self.loss(x_pt, y_pt)
             loss_this_itr.backward()
+            losses.append(loss_this_itr.item())
             opt.step()
-            
+        return losses
+    
     def plot(self, fit_fn, a, b, dx):
         x = np.arange(a, b, dx)
         x_pt = torch.tensor(x, dtype=torch.double, device=self.device).view([-1, 1])
@@ -202,6 +214,56 @@ class du_MLP(nn.Module):
         plt.plot(x, y_true, label="True")
         plt.plot(x, y_est, label="Estimate")
 
+class IdealICNN(nn.Module):
+    def __init__(self, inp_dim, width, device="cpu"):
+        super(IdealICNN, self).__init__()
+        layers = (inp_dim, width, 1)
+        weight_dims = list(zip(layers[1:], layers))
+        self.Ws = nn.ParameterList()
+        self.width = width
+        first_idim = weight_dims[0][1]
+        self.layers = layers
+        self.activ_id = "relu"
+        self.activ = nn.ReLU()
+        self.device = device
+        for odim, idim in weight_dims:
+            self.Ws.append(nn.Parameter(torch.tensor(np.random.normal(size=(odim, idim)), device=self.device)))
+        self.A = nn.Parameter(torch.tensor(np.random.normal(size=(1, first_idim)), device=self.device))
+            
+    def forward(self, z):
+        z0 = z.clone()
+        
+        for W in self.Ws[:-1]:
+            z = self.activ(z @ torch.t(W))
+        
+        out_W = self.Ws[-1]
+        z = (z0 @ torch.t(self.A)) + 1/np.sqrt(self.width) * torch.sum(z, axis=-1, keepdim=True) - np.sqrt(self.width / (2 * np.pi))
+        return z
+
+    def loss(self, x, y):
+        return torch.sum((self.forward(x) - y)**2)
+    
+    def train(self, x, y, tparams, verbose=True):
+        x_pt = torch.tensor(x, dtype=torch.double, device=self.device)
+        y_pt = torch.tensor(y, dtype=torch.double, device=self.device)
+        assert y.shape[-1] == 1, "Target output y must be a 1 dimensional scalar variable per input x, ie its shape should be (..., 1)"
+        
+        opt = torch.optim.Adam(params=self.parameters(), lr=tparams.lr, betas=(tparams.b1, tparams.b2))
+
+        if verbose:
+            rng = trange(tparams.iters)
+        else:
+            rng = range(tparams.iters)
+        
+        losses = []
+        for itr in rng:
+            opt.zero_grad()
+            loss_this_itr = self.loss(x_pt, y_pt)
+            losses.append(loss_this_itr.item())
+            loss_this_itr.backward()
+            opt.step()
+        return losses
+       
 
 class TParams():
     def __init__(self, lr, b1, b2, iters):
