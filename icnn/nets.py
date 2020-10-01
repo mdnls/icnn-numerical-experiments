@@ -19,7 +19,7 @@ class ICNN(nn.Module):
         self.device = device
         for odim, idim in weight_dims:
             self.As.append(nn.Parameter(torch.tensor(np.random.normal(size=(odim, first_idim)), device=self.device)))
-            self.Ws.append(nn.Parameter(torch.tensor(np.random.uniform(size=(odim, idim), low=0, high=10), device=self.device)))
+            self.Ws.append(nn.Parameter(torch.tensor(np.random.uniform(size=(odim, idim), low=0, high=1), device=self.device)))
             self.bs.append(nn.Parameter(torch.tensor(np.random.normal(size=(odim,)), device=self.device)))
         if(activ == "relu"):
             self.activ = nn.ReLU()
@@ -33,7 +33,7 @@ class ICNN(nn.Module):
         layers = list(zip(self.As, self.Ws, self.bs))
         
         for (A, W, b) in layers[:-1]:
-            z = self.activ(z0 @ torch.t(A) + b) # + z @ torch.t(W) + b)
+            z = self.activ(z0 @ torch.t(A) + z @ torch.t(W) + b)
         
         out_A, out_W, out_b = layers[-1]
         z = z0 @ torch.t(out_A) + z @ torch.t(out_W) + out_b
