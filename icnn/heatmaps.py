@@ -34,17 +34,22 @@ def make_data(data_dist, sampling, n, f=None):
     - Unit_Normal: generate data x_i for which y_i is e^{-(x_0)^2}
     - Func: generate data by applying fit_fn : R^2 -> R 
     
-    sampling is a string in ["regular", "unif"]
+    sampling is a string in ["regular", "unif", "gaussian"]
     - Regular: sample n points in regular intervals around the perimeter of the circle
     - Uniform: sample n points uniform randomly around the permieter of the circle
+    - Gaussian: sample n points from a unit gaussian in the 2D plane
     '''
-    if(sampling == "regular"):
-        thetas = np.linspace(0, 2*np.pi, n, endpoint=False)
-    elif(sampling == "unif"):
-        thetas = np.random.uniform(size=(n,), low=0, high=2*np.pi)
-    else:
-        raise ValueError("The requested sampling method was not recognized.")
-        
+    
+    if(sampling == "gaussian"):
+        x = np.random.normal(size=(n, 2))
+    elif:
+        if(sampling == "regular"):
+            thetas = np.linspace(0, 2*np.pi, n, endpoint=False)
+        elif(sampling == "unif"):
+            thetas = np.random.uniform(size=(n,), low=0, high=2*np.pi)
+        else:
+            raise ValueError("The requested sampling method was not recognized.")
+
     x = np.stack((np.cos(thetas), np.sin(thetas)), axis=1)
     if data_dist == "checkerboard":
         f = DataFunc().checkerboard
