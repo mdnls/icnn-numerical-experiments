@@ -118,8 +118,12 @@ class MLP(ICNN):
     def train(self, x, y, tparams, verbose=True):
         x_pt = torch.tensor(x, dtype=torch.double, device=self.device)
         y_pt = torch.tensor(y, dtype=torch.double, device=self.device)
-        opt = torch.optim.Adam(params=self.parameters(), lr=tparams.lr, betas=(tparams.b1, tparams.b2))
         
+        if(tparams.b1 is not None):
+            opt = torch.optim.Adam(params=self.parameters(), lr=tparams.lr, betas=(tparams.b1, tparams.b2))
+        else: 
+            opt = torch.optim.SGD(params=self.parameters(), lr=tparams.lr)
+            
         if verbose:
             rng = trange(tparams.iters)
         else:
@@ -189,12 +193,16 @@ class du_MLP(nn.Module):
     def train(self, x, y, tparams, verbose=True):
         x_pt = torch.tensor(x, dtype=torch.double, device=self.device)
         y_pt = torch.tensor(y, dtype=torch.double, device=self.device)
-        opt = torch.optim.Adam(params=self.parameters(), lr=tparams.lr, betas=(tparams.b1, tparams.b2))
         
         if verbose:
             rng = trange(tparams.iters)
         else:
             rng = range(tparams.iters)
+            
+        if(tparams.b1 is not None):
+            opt = torch.optim.Adam(params=self.parameters(), lr=tparams.lr, betas=(tparams.b1, tparams.b2))
+        else: 
+            opt = torch.optim.SGD(params=self.parameters(), lr=tparams.lr)
             
         losses = []
         for itr in rng:
@@ -237,7 +245,7 @@ class IdealICNN(nn.Module):
             z = self.activ(z @ torch.t(W))
         
         out_W = self.Ws[-1]
-        z = (z0 @ torch.t(self.A)) + 1/np.sqrt(self.width) * torch.sum(z, axis=-1, keepdim=True) - np.sqrt(self.width / (2 * np.pi))
+        z = (z0 @ torch.t(self.A)) + 1/np.sqrt(self.width) * torch.sum(z, dim=-1, keepdim=True) - np.sqrt(self.width / (2 * np.pi))
         return z
 
     def loss(self, x, y):
@@ -248,13 +256,16 @@ class IdealICNN(nn.Module):
         y_pt = torch.tensor(y, dtype=torch.double, device=self.device)
         assert y.shape[-1] == 1, "Target output y must be a 1 dimensional scalar variable per input x, ie its shape should be (..., 1)"
         
-        opt = torch.optim.Adam(params=self.parameters(), lr=tparams.lr, betas=(tparams.b1, tparams.b2))
-
         if verbose:
             rng = trange(tparams.iters)
         else:
             rng = range(tparams.iters)
         
+        if(tparams.b1 is not None):
+            opt = torch.optim.Adam(params=self.parameters(), lr=tparams.lr, betas=(tparams.b1, tparams.b2))
+        else: 
+            opt = torch.optim.SGD(params=self.parameters(), lr=tparams.lr)
+            
         losses = []
         for itr in rng:
             opt.zero_grad()
@@ -266,7 +277,7 @@ class IdealICNN(nn.Module):
        
 
 class TParams():
-    def __init__(self, lr, b1, b2, iters):
+    def __init__(self, lr=0.001, b1=None, b2=None, iters=1000):
         self.lr = lr
         self.b1 = b1
         self.b2 = b2
